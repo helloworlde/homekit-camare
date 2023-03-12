@@ -1,4 +1,0 @@
----
-runit_services_dir: /etc/service
-runit_runsvdir_dir: /etc/sv
-runit_startup_file: /sbin/runsvdir-start
