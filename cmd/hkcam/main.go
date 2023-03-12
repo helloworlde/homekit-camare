@@ -1,32 +1,19 @@
 package main
 
 import (
+	"context"
+	"flag"
+	"fmt"
 	"github.com/brutella/hap"
 	"github.com/brutella/hap/accessory"
 	"github.com/brutella/hap/log"
 	"github.com/brutella/hkcam"
-	"github.com/brutella/hkcam/api"
-	"github.com/brutella/hkcam/app"
 	"github.com/brutella/hkcam/ffmpeg"
-	"github.com/brutella/hkcam/html"
-	"github.com/unrolled/render"
-
-	"bytes"
-	"context"
-	"encoding/json"
-	"flag"
-	"fmt"
-	"html/template"
 	"image"
-	"image/jpeg"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
-	"time"
 )
 
 var (
@@ -38,10 +25,6 @@ var (
 
 	// BuildMode is the build mode ("debug", "release")
 	BuildMode string
-)
-
-const (
-	DateLayout = "2006-01-02T15:04:05Z-0700"
 )
 
 func main() {
@@ -84,11 +67,6 @@ func main() {
 		ffmpeg.EnableVerboseLogging()
 	}
 
-	buildDate, err := time.Parse(DateLayout, Date)
-	if err != nil {
-		log.Info.Fatal(err)
-	}
-
 	log.Info.Printf("version %s (built at %s)\n", Version, Date)
 
 	switchInfo := accessory.Info{Name: "Camera", Firmware: Version, Manufacturer: "Matthias Hochgatterer"}
@@ -122,58 +100,6 @@ func main() {
 	s.Pin = *pin
 	s.Addr = fmt.Sprintf(":%s", *port)
 
-	s.ServeMux().HandleFunc("/resource", func(res http.ResponseWriter, req *http.Request) {
-		if !s.IsAuthorized(req) {
-			hap.JsonError(res, hap.JsonStatusInsufficientPrivileges)
-			return
-		}
-
-		if req.Method != http.MethodPost {
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		body, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			log.Info.Println(err)
-			res.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		r := struct {
-			Type   string `json:"resource-type"`
-			Width  uint   `json:"image-width"`
-			Height uint   `json:"image-height"`
-		}{}
-
-		err = json.Unmarshal(body, &r)
-		if err != nil {
-			log.Info.Println(err)
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		log.Debug.Printf("%+v\n", r)
-
-		switch r.Type {
-		case "image":
-			b, err := snapshot(r.Width, r.Height, ffmpeg)
-			if err != nil {
-				log.Info.Println(err)
-				res.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			res.Header().Set("Content-Type", "image/jpeg")
-			wr := hap.NewChunkedWriter(res, 2048)
-			wr.Write(b)
-		default:
-			log.Info.Printf("unsupported resource request \"%s\"\n", r.Type)
-			res.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-	})
-
 	cc.SetupWithDir(*dataDir)
 	cc.CameraSnapshotReq = func(width, height uint) (*image.Image, error) {
 		snapshot, err := ffmpeg.Snapshot(width, height)
@@ -183,49 +109,6 @@ func main() {
 
 		return &snapshot.Image, nil
 	}
-
-	appl := &app.App{
-		BuildMode: BuildMode,
-		BuildDate: buildDate,
-		Version:   Version,
-		Launch:    time.Now(),
-		Store:     store,
-		FFMPEG:    ffmpeg,
-	}
-	api := &api.Api{
-		App: appl,
-	}
-
-	// files are served via fs.go
-	fs := &embedFS{}
-
-	funcs := template.FuncMap{
-		"_formatDate": func(d time.Time) string { return d.Format(time.RFC3339) },
-		"_safeHTML":   func(s string) template.HTML { return template.HTML(s) },
-		"T":           func(s string, args ...interface{}) string { return fmt.Sprintf(s, args...) },
-	}
-	html := html.Html{
-		Store:      store,
-		BuildMode:  BuildMode,
-		Api:        api,
-		App:        appl,
-		FileSystem: fs,
-		Render: render.New(render.Options{
-			Directory:  "/html/tmpl",
-			FileSystem: fs,
-			Layout:     "layout",
-			Funcs:      []template.FuncMap{funcs},
-		}),
-	}
-
-	s.ServeMux().Mount("/api", api.Router())
-	s.ServeMux().Mount("/", html.Router())
-
-	// serve static files
-	staticFs := http.FileServer(FS(false))
-	s.ServeMux().HandleFunc("/static/*", func(w http.ResponseWriter, r *http.Request) {
-		staticFs.ServeHTTP(w, r)
-	})
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt)
@@ -244,40 +127,4 @@ func main() {
 			log.Info.Println(err)
 		}
 	}
-}
-
-func snapshot(width, height uint, ffmpeg ffmpeg.FFMPEG) ([]byte, error) {
-	log.Debug.Printf("snapshot %dw x %dh\n", width, height)
-
-	snapshot, err := ffmpeg.Snapshot(width, height)
-	if err != nil {
-		return nil, fmt.Errorf("snapshot: %v", err)
-	}
-
-	buf := new(bytes.Buffer)
-	if err := jpeg.Encode(buf, snapshot.Image, nil); err != nil {
-		return nil, fmt.Errorf("encode: %v", err)
-	}
-
-	return buf.Bytes(), nil
-}
-
-// embedFS serves files
-type embedFS struct {
-}
-
-func (embedFS) Walk(root string, walkFn filepath.WalkFunc) error {
-	for path, file := range _escData {
-		stat, err := file.Stat()
-		err = walkFn(path, stat, err)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (embedFS) ReadFile(filename string) ([]byte, error) {
-	return FSByte(false, filename)
 }
