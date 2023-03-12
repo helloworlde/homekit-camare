@@ -9,7 +9,6 @@ import (
 	"github.com/brutella/hap/log"
 	"github.com/brutella/hkcam"
 	"github.com/brutella/hkcam/ffmpeg"
-	"image"
 	"os"
 	"os/signal"
 	"runtime"
@@ -82,14 +81,7 @@ func main() {
 		MultiStream:      *multiStream,
 	}
 
-	ffmpeg := hkcam.SetupFFMPEGStreaming(cam, cfg)
-
-	// Add a custom camera control service to record snapshots
-	cc := hkcam.NewCameraControl()
-	cam.Control.AddC(cc.Assets.C)
-	cam.Control.AddC(cc.GetAsset.C)
-	cam.Control.AddC(cc.DeleteAssets.C)
-	cam.Control.AddC(cc.TakeSnapshot.C)
+	hkcam.SetupFFMPEGStreaming(cam, cfg)
 
 	store := hap.NewFsStore(*dataDir)
 	s, err := hap.NewServer(store, cam.A)
@@ -99,16 +91,6 @@ func main() {
 
 	s.Pin = *pin
 	s.Addr = fmt.Sprintf(":%s", *port)
-
-	cc.SetupWithDir(*dataDir)
-	cc.CameraSnapshotReq = func(width, height uint) (*image.Image, error) {
-		snapshot, err := ffmpeg.Snapshot(width, height)
-		if err != nil {
-			return nil, err
-		}
-
-		return &snapshot.Image, nil
-	}
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt)
