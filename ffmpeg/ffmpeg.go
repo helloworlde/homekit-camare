@@ -60,6 +60,7 @@ func New(cfg Config) *ffmpeg {
 }
 
 func (f *ffmpeg) PrepareNewStream(req rtp.SetupEndpoints, resp rtp.SetupEndpointsResponse) StreamID {
+	log.Info.Println("ffmpeg 控制: PrepareNewStream")
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -70,6 +71,8 @@ func (f *ffmpeg) PrepareNewStream(req rtp.SetupEndpoints, resp rtp.SetupEndpoint
 }
 
 func (f *ffmpeg) ActiveStreams() int {
+	log.Info.Println("ffmpeg 控制: ActiveStreams")
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -77,12 +80,14 @@ func (f *ffmpeg) ActiveStreams() int {
 }
 
 func (f *ffmpeg) Start(id StreamID, video rtp.VideoParameters, audio rtp.AudioParameters) error {
+	log.Info.Println("ffmpeg 控制: Start")
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
 	s, err := f.getStream(id)
 	if err != nil {
-		log.Info.Println("start:", err)
+		log.Info.Println("开始 ffmpeg 流:", err)
 		return err
 	}
 
@@ -92,6 +97,8 @@ func (f *ffmpeg) Start(id StreamID, video rtp.VideoParameters, audio rtp.AudioPa
 }
 
 func (f *ffmpeg) Stop(id StreamID) {
+	log.Info.Println("ffmpeg 控制: Stop")
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -118,6 +125,8 @@ func (f *ffmpeg) Stop(id StreamID) {
 }
 
 func (f *ffmpeg) Suspend(id StreamID) {
+	log.Info.Println("ffmpeg 控制: Suspend")
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -129,6 +138,8 @@ func (f *ffmpeg) Suspend(id StreamID) {
 }
 
 func (f *ffmpeg) Resume(id StreamID) {
+	log.Info.Println("ffmpeg 控制: Resume")
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -140,6 +151,8 @@ func (f *ffmpeg) Resume(id StreamID) {
 }
 
 func (f *ffmpeg) Reconfigure(id StreamID, video rtp.VideoParameters, audio rtp.AudioParameters) error {
+	log.Info.Println("ffmpeg 控制: Reconfigure")
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -153,6 +166,8 @@ func (f *ffmpeg) Reconfigure(id StreamID, video rtp.VideoParameters, audio rtp.A
 }
 
 func (f *ffmpeg) getStream(id StreamID) (*stream, error) {
+	log.Info.Println("ffmpeg 控制: getStream")
+
 	if s, ok := f.streams[id]; ok {
 		return s, nil
 	}
@@ -161,6 +176,8 @@ func (f *ffmpeg) getStream(id StreamID) (*stream, error) {
 }
 
 func (f *ffmpeg) startLoopback() {
+	log.Info.Println("ffmpeg 控制: startLoopback")
+
 	if f.loop != nil {
 		if err := f.loop.Start(); err != nil {
 			log.Info.Println("starting loopback failed:", err)
@@ -169,6 +186,8 @@ func (f *ffmpeg) startLoopback() {
 }
 
 func (f *ffmpeg) RecentSnapshot(width, height uint) *Snapshot {
+	log.Info.Println("ffmpeg 控制: RecentSnapshot")
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -176,6 +195,8 @@ func (f *ffmpeg) RecentSnapshot(width, height uint) *Snapshot {
 }
 
 func (f *ffmpeg) Snapshot(width, height uint) (*Snapshot, error) {
+	log.Info.Println("ffmpeg 控制: Snapshot")
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 

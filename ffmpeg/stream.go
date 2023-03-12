@@ -74,19 +74,7 @@ func (s *stream) start(video rtp.VideoParameters, audio rtp.AudioParameters) err
 		fmt.Sprintf(" -srtp_out_params %s", s.req.Video.SrtpKey()) +
 		fmt.Sprintf(" srtp://%s:%d?rtcpport=%d&pkt_size=%s&timeout=60", s.req.ControllerAddr.IPAddr, s.req.ControllerAddr.VideoRtpPort, s.req.ControllerAddr.VideoRtpPort, videoMTU(s.req))
 
-	// FIXME (mah) Audio doesn't work yet
-	// ffmpegAudio := "-vn" +
-	//     fmt.Sprintf(" %s", audioCodecOption(audio)) +
-	//     // compression-level 0-10 (fastest-slowest)
-	//     fmt.Sprintf(" -b:a %dk -bufsize 48k", audio.RTP.Bitrate) +
-	//     fmt.Sprintf(" -ar %s", audioSamplingRate(audio)) +
-	//     fmt.Sprintf(" -payload_type %d", audio.RTP.PayloadType) +
-	// fmt.Sprintf(" -ssrc %d", s.resp.SsrcAudio) +
-	//     " -f rtp -srtp_out_suite AES_CM_128_HMAC_SHA1_80" +
-	//     fmt.Sprintf(" -srtp_out_params %s", s.req.Audio.SrtpKey()) +
-	//     fmt.Sprintf(" srtp://%s:%d?rtcpport=%d&localrtcpport=%d&timeout=60", s.req.ControllerAddr.IPAddr, s.req.ControllerAddr.AudioRtpPort, s.req.ControllerAddr.AudioRtpPort, s.req.ControllerAddr.AudioRtpPort)
-
-	log.Info.Println("ffmpeg 命令: ", ffmpegVideo)
+	log.Info.Println("ffmpeg 命令: ffmpeg", ffmpegVideo)
 	args := strings.Split(ffmpegVideo, " ")
 	cmd := exec.Command("ffmpeg", args[:]...)
 	cmd.Stdout = Stdout
@@ -152,24 +140,6 @@ func (s *stream) videoBitrate(param rtp.VideoParameters) int {
 	return br
 }
 
-// https://superuser.com/a/564007
-func videoProfile(param rtp.VideoCodecParameters) string {
-	for _, p := range param.Profiles {
-		switch p.Id {
-		case rtp.VideoCodecProfileConstrainedBaseline:
-			return "baseline"
-		case rtp.VideoCodecProfileMain:
-			return "main"
-		case rtp.VideoCodecProfileHigh:
-			return "high"
-		default:
-			break
-		}
-	}
-
-	return ""
-}
-
 func (s *stream) framerate(attr rtp.VideoCodecAttributes) byte {
 	if s.inputDevice == "avfoundation" {
 		// avfoundation only supports 30 fps on a MacBook Pro (Retina, 15-inch, Late 2013) running macOS 10.12 Sierra
@@ -207,59 +177,4 @@ func videoMTU(setup rtp.SetupEndpoints) string {
 	}
 
 	return "1378"
-}
-
-// https://trac.ffmpeg.org/wiki/audio%20types
-func audioCodecOption(param rtp.AudioParameters) string {
-	switch param.CodecType {
-	case rtp.AudioCodecType_PCMU:
-		log.Debug.Println("audioCodec(PCMU) not supported")
-	case rtp.AudioCodecType_PCMA:
-		log.Debug.Println("audioCodec(PCMA) not supported")
-	case rtp.AudioCodecType_AAC_ELD:
-		return "-acodec aac"
-		// return "-acodec libfdk_aac -aprofile aac_eld" // requires ffmpeg built with --enable-libfdk-aac
-	case rtp.AudioCodecType_Opus:
-		// requires ffmpeg built with --enable-libopus
-		// - macOS: brew reinstall ffmpeg --with-opus
-		return fmt.Sprintf("-acodec libopus")
-	case rtp.AudioCodecType_MSBC:
-		log.Debug.Println("audioCodec(MSBC) not supported")
-	case rtp.AudioCodecType_AMR:
-		log.Debug.Println("audioCodec(AMR) not supported")
-	case rtp.AudioCodecType_ARM_WB:
-		log.Debug.Println("audioCodec(ARM_WB) not supported")
-	}
-
-	return ""
-}
-
-func audioVariableBitrate(param rtp.AudioParameters) string {
-	switch param.CodecParams.Bitrate {
-	case rtp.AudioCodecBitrateVariable:
-		return "on"
-	case rtp.AudioCodecBitrateConstant:
-		return "off"
-	default:
-		log.Info.Println("variableBitrate() undefined bitrate", param.CodecParams.Bitrate)
-		break
-	}
-
-	return "?"
-}
-
-func audioSamplingRate(param rtp.AudioParameters) string {
-	switch param.CodecParams.Samplerate {
-	case rtp.AudioCodecSampleRate8Khz:
-		return "8k"
-	case rtp.AudioCodecSampleRate16Khz:
-		return "16k"
-	case rtp.AudioCodecSampleRate24Khz:
-		return "24k"
-	default:
-		log.Info.Println("audioSamplingRate() undefined samplerate", param.CodecParams.Samplerate)
-		break
-	}
-
-	return ""
 }

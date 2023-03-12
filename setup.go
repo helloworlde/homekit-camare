@@ -28,16 +28,6 @@ func SetupFFMPEGStreaming(cam *accessory.Camera, cfg ffmpeg.Config) ffmpeg.FFMPE
 	return ff
 }
 
-func first(ips []net.IP, filter func(net.IP) bool) net.IP {
-	for _, ip := range ips {
-		if filter(ip) == true {
-			return ip
-		}
-	}
-
-	return nil
-}
-
 func setupStreamManagement(m *service.CameraRTPStreamManagement, ff ffmpeg.FFMPEG, multiStream bool) {
 	setTLV8Payload(m.StreamingStatus.Bytes, rtp.StreamingStatus{rtp.StreamingStatusAvailable})
 	setTLV8Payload(m.SupportedRTPConfiguration.Bytes, rtp.NewConfiguration(rtp.CryptoSuite_AES_CM_128_HMAC_SHA1_80))
@@ -45,6 +35,7 @@ func setupStreamManagement(m *service.CameraRTPStreamManagement, ff ffmpeg.FFMPE
 	setTLV8Payload(m.SupportedAudioStreamConfiguration.Bytes, rtp.DefaultAudioStreamConfiguration())
 
 	m.SelectedRTPStreamConfiguration.OnValueRemoteUpdate(func(buf []byte) {
+		log.Info.Println("触发 SelectedRTPStreamConfiguration.OnValueRemoteUpdate 事件", string(buf))
 		var cfg rtp.StreamConfiguration
 		err := tlv8.Unmarshal(buf, &cfg)
 		if err != nil {
@@ -76,6 +67,7 @@ func setupStreamManagement(m *service.CameraRTPStreamManagement, ff ffmpeg.FFMPE
 	})
 
 	m.SetupEndpoints.OnValueUpdate(func(new, old []byte, r *http.Request) {
+		log.Info.Println("触发 SetupEndpoints.OnValueUpdate 事件", string(new))
 		if r == nil {
 			return
 		}

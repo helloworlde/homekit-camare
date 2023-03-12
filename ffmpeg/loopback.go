@@ -42,6 +42,8 @@ func NewLoopback(inputDevice, inputFilename, loopbackFilename string) *loopback 
 // Start starts the loopback.
 // This method waits until the ffmpeg process is running.
 func (l *loopback) Start() error {
+	log.Info.Println("ffmpeg Loopback: Start")
+
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
@@ -96,6 +98,8 @@ func (l *loopback) Start() error {
 
 // Stop stops the loopback.
 func (l *loopback) Stop() {
+	log.Info.Println("ffmpeg Loopback: Stop")
+
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
@@ -110,6 +114,7 @@ func (l *loopback) Stop() {
 // cmd returns a new command to stream video from the input file to the loopback file.
 func (l *loopback) execCmd() *exec.Cmd {
 	cmd := exec.Command("ffmpeg", "-f", l.inputDevice, "-i", l.inputFilename, "-codec:v", "copy", "-f", l.inputDevice, l.loopbackFilename)
+	log.Info.Println("ffmpeg Loopback: execCmd:", cmd)
 
 	log.Debug.Println(cmd)
 
