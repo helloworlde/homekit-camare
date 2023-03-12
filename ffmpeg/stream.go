@@ -51,7 +51,7 @@ func (s *stream) start(video rtp.VideoParameters, audio rtp.AudioParameters) err
 		fmt.Sprintf(" -codec:v %s", s.videoEncoder(video)) +
 		" -pix_fmt yuv420p -vsync vfr" +
 		// 5帧每秒
-		fmt.Sprintf(" -r 5") +
+		fmt.Sprintf(" -r 10") +
 
 		// height "-2" keeps the aspect ratio
 		fmt.Sprintf(" -video_size %d:-2", video.Attributes.Width) +
