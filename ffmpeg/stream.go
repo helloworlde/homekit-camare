@@ -41,14 +41,17 @@ func (s *stream) start(video rtp.VideoParameters, audio rtp.AudioParameters) err
 
 	// -vsync 2: Fixes "Frame rate very high for a muxer not efficiently supporting it."
 	// -framerate before -i specifies the framerate for the input, after -i sets it for the output https://stackoverflow.com/questions/38498599/webcam-with-ffmpeg-on-mac-selected-framerate-29-970030-is-not-supported-by-th#38549528
-
-	ffmpegVideo := fmt.Sprintf("-f %s", s.inputDevice) +
+	ffmpegVideo := fmt.Sprintf("-re -i %s", s.inputFilename) +
+		// 使用软件解码
+		fmt.Sprintf(" -allow_sw 1") +
 		fmt.Sprintf(" -framerate %d", s.framerate(video.Attributes)) +
 		fmt.Sprintf("%s", s.videoDecoderOption(video)) +
-		fmt.Sprintf(" -re -i %s", s.inputFilename) +
+		//fmt.Sprintf(" -re -i %s", s.inputFilename) +
 		" -an" +
 		fmt.Sprintf(" -codec:v %s", s.videoEncoder(video)) +
 		" -pix_fmt yuv420p -vsync vfr" +
+		// 5帧每秒
+		fmt.Sprintf(" -r 5") +
 
 		// height "-2" keeps the aspect ratio
 		fmt.Sprintf(" -video_size %d:-2", video.Attributes.Width) +
@@ -71,18 +74,19 @@ func (s *stream) start(video rtp.VideoParameters, audio rtp.AudioParameters) err
 		fmt.Sprintf(" -srtp_out_params %s", s.req.Video.SrtpKey()) +
 		fmt.Sprintf(" srtp://%s:%d?rtcpport=%d&pkt_size=%s&timeout=60", s.req.ControllerAddr.IPAddr, s.req.ControllerAddr.VideoRtpPort, s.req.ControllerAddr.VideoRtpPort, videoMTU(s.req))
 
-		// FIXME (mah) Audio doesn't work yet
-		// ffmpegAudio := "-vn" +
-		//     fmt.Sprintf(" %s", audioCodecOption(audio)) +
-		//     // compression-level 0-10 (fastest-slowest)
-		//     fmt.Sprintf(" -b:a %dk -bufsize 48k", audio.RTP.Bitrate) +
-		//     fmt.Sprintf(" -ar %s", audioSamplingRate(audio)) +
-		//     fmt.Sprintf(" -payload_type %d", audio.RTP.PayloadType) +
-		// fmt.Sprintf(" -ssrc %d", s.resp.SsrcAudio) +
-		//     " -f rtp -srtp_out_suite AES_CM_128_HMAC_SHA1_80" +
-		//     fmt.Sprintf(" -srtp_out_params %s", s.req.Audio.SrtpKey()) +
-		//     fmt.Sprintf(" srtp://%s:%d?rtcpport=%d&localrtcpport=%d&timeout=60", s.req.ControllerAddr.IPAddr, s.req.ControllerAddr.AudioRtpPort, s.req.ControllerAddr.AudioRtpPort, s.req.ControllerAddr.AudioRtpPort)
+	// FIXME (mah) Audio doesn't work yet
+	// ffmpegAudio := "-vn" +
+	//     fmt.Sprintf(" %s", audioCodecOption(audio)) +
+	//     // compression-level 0-10 (fastest-slowest)
+	//     fmt.Sprintf(" -b:a %dk -bufsize 48k", audio.RTP.Bitrate) +
+	//     fmt.Sprintf(" -ar %s", audioSamplingRate(audio)) +
+	//     fmt.Sprintf(" -payload_type %d", audio.RTP.PayloadType) +
+	// fmt.Sprintf(" -ssrc %d", s.resp.SsrcAudio) +
+	//     " -f rtp -srtp_out_suite AES_CM_128_HMAC_SHA1_80" +
+	//     fmt.Sprintf(" -srtp_out_params %s", s.req.Audio.SrtpKey()) +
+	//     fmt.Sprintf(" srtp://%s:%d?rtcpport=%d&localrtcpport=%d&timeout=60", s.req.ControllerAddr.IPAddr, s.req.ControllerAddr.AudioRtpPort, s.req.ControllerAddr.AudioRtpPort, s.req.ControllerAddr.AudioRtpPort)
 
+	log.Info.Println("ffmpeg 命令: ", ffmpegVideo)
 	args := strings.Split(ffmpegVideo, " ")
 	cmd := exec.Command("ffmpeg", args[:]...)
 	cmd.Stdout = Stdout
